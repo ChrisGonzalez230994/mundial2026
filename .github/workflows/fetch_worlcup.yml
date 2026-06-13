@@ -1,0 +1,78 @@
+name: Fetch World Cup Data
+
+on:
+  # Runs every minute — GitHub's minimum for schedule is 5 minutes.
+  # For true 1-minute updates, we chain jobs (see note below).
+  schedule:
+    - cron: "*/5 * * * *"   # Every 5 min — GitHub Actions minimum
+
+  # Allow manual trigger from GitHub UI
+  workflow_dispatch:
+
+  # Also trigger on push to main (first deploy)
+  push:
+    branches: [main]
+    paths:
+      - "scripts/fetch_data.py"
+
+# Allow the workflow to write back to the repo
+permissions:
+  contents: write
+
+jobs:
+  fetch-and-commit:
+    runs-on: ubuntu-latest
+    # Only run during World Cup window (June 11 – July 19 2026 UTC)
+    # Remove this condition after the tournament or adjust dates
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'push' ||
+      (
+        github.event_name == 'schedule'
+      )
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Fetch data from api-football.com
+        env:
+          RAPIDAPI_KEY: ${{ secrets.RAPIDAPI_KEY }}
+        run: python scripts/fetch_data.py
+
+      - name: Commit updated data
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/worldcup.json
+          # Only commit if there are actual changes
+          git diff --cached --quiet || git commit -m "chore: update worldcup data [skip ci]"
+          git push
+
+  # ---------------------------------------------------------------
+  # NOTE ON 1-MINUTE UPDATES
+  # GitHub's scheduled minimum is 5 minutes. To get closer to 1-min
+  # during live matches, use this self-chaining approach instead:
+  # Uncomment the job below AND remove the schedule above.
+  # ---------------------------------------------------------------
+  # chain-next-run:
+  #   needs: fetch-and-commit
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Wait 60 seconds then re-trigger
+  #       run: sleep 60
+  #     - name: Trigger next run
+  #       uses: peter-evans/repository-dispatch@v3
+  #       with:
+  #         token: ${{ secrets.GITHUB_TOKEN }}
+  #         event-type: fetch-data
