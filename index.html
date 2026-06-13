@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Mundial 2026 — Dashboard en vivo</title>
+<meta name="description" content="Seguimiento en tiempo real del Mundial FIFA 2026: resultados, posiciones, goleadores y estadísticas de todos los grupos." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Bebas+Neue&display=swap" rel="stylesheet" />
+<style>
+/* ── Reset & tokens ─────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:       #0a0f1e;
+  --surface:  #111827;
+  --card:     #1a2235;
+  --border:   rgba(255,255,255,.08);
+  --green:    #22c55e;
+  --green-bg: rgba(34,197,94,.12);
+  --amber:    #f59e0b;
+  --amber-bg: rgba(245,158,11,.12);
+  --red:      #ef4444;
+  --red-bg:   rgba(239,68,68,.12);
+  --blue:     #3b82f6;
+  --blue-bg:  rgba(59,130,246,.12);
+  --text:     #f1f5f9;
+  --muted:    #64748b;
+  --gold:     #fbbf24;
+  --live:     #ef4444;
+  --radius:   10px;
+  --radius-lg:16px;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  min-height: 100vh;
+}
+
+/* ── Layout ─────────────────────────────────────────────────── */
+.container { max-width: 1200px; margin: 0 auto; padding: 0 16px; }
+
+/* ── Header ─────────────────────────────────────────────────── */
+header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0 16px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.header-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 56px;
+  gap: 12px;
+}
+.logo {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 22px;
+  letter-spacing: 1px;
+  color: var(--gold);
+  white-space: nowrap;
+}
+.logo span { color: var(--text); }
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+}
+.live-badge {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--red-bg);
+  color: var(--red);
+  border: 1px solid rgba(239,68,68,.3);
+  border-radius: 20px;
+  padding: 3px 10px;
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: .5px;
+}
+.live-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--live);
+  animation: pulse 1.2s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%,100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: .5; transform: scale(1.4); }
+}
+.updated-label {
+  color: var(--muted);
+  font-size: 11px;
+}
+.refresh-btn {
+  background: var(--blue-bg);
+  color: var(--blue);
+  border: 1px solid rgba(59,130,246,.3);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity .15s;
+}
+.refresh-btn:hover { opacity: .75; }
+
+/* ── Tabs ────────────────────────────────────────────────────── */
+.tabs {
+  display: flex;
+  gap: 2px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding: 0 16px;
+}
+.tabs::-webkit-scrollbar { display: none; }
+.tab {
+  padding: 10px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+  transition: color .15s, border-color .15s;
+  user-select: none;
+}
+.tab:hover { color: var(--text); }
+.tab.active {
+  color: var(--gold);
+  border-bottom-color: var(--gold);
+}
+
+/* ── Section ─────────────────────────────────────────────────── */
+.section { display: none; padding: 20px 0 40px; }
+.section.active { display: block; }
+.section-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 20px;
+  letter-spacing: .5px;
+  color: var(--text);
+  margin-bottom: 16px;
+}
+
+/* ── Live banner ─────────────────────────────────────────────── */
+#live-banner { margin-bottom: 20px; }
+.live-match-card {
+  background: linear-gradient(135deg, #1a2235 0%, #1f2d44 100%);
+  border: 1px solid rgba(239,68,68,.35);
+  border-radius: var(--radius-lg);
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.match-team {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+}
+.match-team.away { flex-direction: row-reverse; }
+.team-logo { width: 36px; height: 36px; object-fit: contain; }
+.team-name-lg { font-size: 15px; font-weight: 600; }
+.score-block {
+  text-align: center;
+  min-width: 80px;
+}
+.score-main {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 32px;
+  line-height: 1;
+  letter-spacing: 2px;
+}
+.score-status {
+  font-size: 11px;
+  color: var(--live);
+  font-weight: 600;
+  margin-top: 2px;
+}
+.ht-score { color: var(--muted); font-size: 11px; margin-top: 2px; }
+
+/* ── Fixture cards ───────────────────────────────────────────── */
+.fixtures-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 10px;
+}
+.fixture-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+}
+.fixture-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+.fixture-teams {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.fixture-team {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+}
+.fixture-team.away { flex-direction: row-reverse; }
+.fixture-team img { width: 24px; height: 24px; object-fit: contain; }
+.fixture-team .name { font-weight: 500; font-size: 13px; }
+.fixture-score {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 20px;
+  letter-spacing: 2px;
+  min-width: 52px;
+  text-align: center;
+}
+.fixture-score.pending { color: var(--muted); font-size: 14px; letter-spacing: 0; }
+.winner { color: var(--green); }
+.loser  { color: var(--muted); }
+.badge  {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 20px;
+}
+.badge-live { background: var(--red-bg); color: var(--red); }
+.badge-ft   { background: var(--green-bg); color: var(--green); }
+.badge-ns   { background: var(--blue-bg); color: var(--blue); }
+.badge-other{ background: var(--amber-bg); color: var(--amber); }
+
+/* ── Standings ───────────────────────────────────────────────── */
+.groups-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 16px;
+}
+.group-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+.group-header {
+  background: rgba(251,191,36,.08);
+  border-bottom: 1px solid var(--border);
+  padding: 10px 16px;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 16px;
+  letter-spacing: .5px;
+  color: var(--gold);
+}
+table.standings-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.standings-table th {
+  color: var(--muted);
+  font-weight: 500;
+  padding: 6px 8px;
+  text-align: right;
+  border-bottom: 1px solid var(--border);
+  font-size: 11px;
+}
+.standings-table th:first-child,
+.standings-table th:nth-child(2) { text-align: left; }
+.standings-table td {
+  padding: 8px 8px;
+  text-align: right;
+  border-bottom: 1px solid var(--border);
+}
+.standings-table td:first-child,
+.standings-table td:nth-child(2) { text-align: left; }
+.standings-table tr:last-child td { border-bottom: none; }
+.standings-table tr.qualified { background: rgba(34,197,94,.05); }
+.standings-table tr.qualified-3rd { background: rgba(245,158,11,.04); }
+.rank-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 4px;
+}
+.rank-1, .rank-2 { background: var(--green-bg); color: var(--green); }
+.rank-3          { background: var(--amber-bg); color: var(--amber); }
+.rank-4          { color: var(--muted); background: transparent; }
+.team-cell {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.team-cell img { width: 20px; height: 20px; object-fit: contain; }
+.pts { font-weight: 600; color: var(--text); }
+.form-pills { display: flex; gap: 3px; }
+.fp {
+  display: inline-block;
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  font-size: 9px;
+  font-weight: 700;
+  text-align: center;
+  line-height: 16px;
+}
+.fp-W { background: var(--green-bg); color: var(--green); }
+.fp-D { background: var(--amber-bg); color: var(--amber); }
+.fp-L { background: var(--red-bg);   color: var(--red); }
+
+/* ── Top scorers ─────────────────────────────────────────────── */
+.scorers-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 600px;
+}
+.scorer-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.scorer-rank {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 20px;
+  color: var(--muted);
+  width: 24px;
+  text-align: center;
+}
+.scorer-rank.gold   { color: var(--gold); }
+.scorer-rank.silver { color: #94a3b8; }
+.scorer-rank.bronze { color: #b45309; }
+.scorer-photo {
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--surface);
+}
+.scorer-info { flex: 1; }
+.scorer-name { font-weight: 600; font-size: 14px; }
+.scorer-team { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 5px; }
+.scorer-team img { width: 16px; height: 16px; object-fit: contain; }
+.scorer-goals {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 26px;
+  color: var(--gold);
+}
+.scorer-goals span { font-family: 'Inter', sans-serif; font-size: 11px; color: var(--muted); font-weight: 400; }
+
+/* ── Empty / loading states ──────────────────────────────────── */
+.empty {
+  text-align: center;
+  padding: 48px 20px;
+  color: var(--muted);
+  font-size: 14px;
+}
+.empty .icon { font-size: 36px; margin-bottom: 12px; }
+.spinner {
+  width: 28px; height: 28px;
+  border: 2px solid var(--border);
+  border-top-color: var(--gold);
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+  margin: 0 auto 12px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Footer ──────────────────────────────────────────────────── */
+footer {
+  border-top: 1px solid var(--border);
+  padding: 20px 16px;
+  color: var(--muted);
+  font-size: 11px;
+  text-align: center;
+}
+footer a { color: var(--blue); text-decoration: none; }
+
+/* ── Responsive ──────────────────────────────────────────────── */
+@media (max-width: 600px) {
+  .logo { font-size: 18px; }
+  .team-name-lg { font-size: 13px; }
+  .score-main { font-size: 26px; }
+  .live-match-card { padding: 12px 14px; }
+  .groups-grid { grid-template-columns: 1fr; }
+  .fixtures-grid { grid-template-columns: 1fr; }
+}
+
+/* ── Countdown ───────────────────────────────────────────────── */
+.countdown-bar {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  text-align: center;
+  padding: 6px 16px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.countdown-bar strong { color: var(--gold); }
+
+/* ── Refresh indicator ───────────────────────────────────────── */
+.refresh-progress {
+  height: 2px;
+  background: var(--border);
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 200;
+}
+.refresh-fill {
+  height: 100%;
+  background: var(--gold);
+  transition: width 1s linear;
+}
+</style>
+</head>
+<body>
+
+<!-- Top bar -->
+<header>
+  <div class="header-inner">
+    <div class="logo">Mundial <span>2026</span> 🏆</div>
+    <div class="header-right">
+      <div id="live-indicator" style="display:none" class="live-badge">
+        <div class="live-dot"></div> EN VIVO
+      </div>
+      <div class="updated-label">Actualizado: <span id="updated-time">—</span></div>
+      <button class="refresh-btn" onclick="loadData(true)">↻ Refrescar</button>
+    </div>
+  </div>
+</header>
+
+<!-- Next match countdown -->
+<div class="countdown-bar" id="countdown-bar" style="display:none">
+  Próximo partido en <strong id="countdown-text">—</strong>
+</div>
+
+<!-- Tabs -->
+<div class="tabs">
+  <div class="tab active" data-tab="live">⚡ Hoy / En vivo</div>
+  <div class="tab" data-tab="standings">📊 Posiciones</div>
+  <div class="tab" data-tab="results">✅ Resultados</div>
+  <div class="tab" data-tab="upcoming">📅 Próximos</div>
+  <div class="tab" data-tab="scorers">⚽ Goleadores</div>
+</div>
+
+<!-- Main content -->
+<main class="container" style="padding-top:20px">
+
+  <!-- TAB: HOY / EN VIVO -->
+  <div class="section active" id="section-live">
+    <div id="live-banner"></div>
+    <div class="section-title">Partidos de hoy</div>
+    <div id="today-fixtures" class="fixtures-grid">
+      <div class="empty"><div class="spinner"></div>Cargando...</div>
+    </div>
+  </div>
+
+  <!-- TAB: POSICIONES -->
+  <div class="section" id="section-standings">
+    <div class="section-title">Tabla de posiciones por grupo</div>
+    <div class="groups-grid" id="standings-grid">
+      <div class="empty"><div class="spinner"></div>Cargando...</div>
+    </div>
+    <p style="margin-top:16px; font-size:11px; color:var(--muted)">
+      🟢 Top 2 de cada grupo avanzan directamente · 🟡 Los 8 mejores terceros también avanzan
+    </p>
+  </div>
+
+  <!-- TAB: RESULTADOS -->
+  <div class="section" id="section-results">
+    <div class="section-title">Últimos resultados</div>
+    <div id="results-fixtures" class="fixtures-grid">
+      <div class="empty"><div class="spinner"></div>Cargando...</div>
+    </div>
+  </div>
+
+  <!-- TAB: PRÓXIMOS -->
+  <div class="section" id="section-upcoming">
+    <div class="section-title">Próximos partidos</div>
+    <div id="upcoming-fixtures" class="fixtures-grid">
+      <div class="empty"><div class="spinner"></div>Cargando...</div>
+    </div>
+  </div>
+
+  <!-- TAB: GOLEADORES -->
+  <div class="section" id="section-scorers">
+    <div class="section-title">Tabla de goleadores</div>
+    <div class="scorers-list" id="scorers-list">
+      <div class="empty"><div class="spinner"></div>Cargando...</div>
+    </div>
+  </div>
+
+</main>
+
+<footer>
+  <p>
+    Datos: <a href="https://api-football.com" target="_blank">api-football.com (RapidAPI)</a> ·
+    Actualización automática cada 60 seg durante partidos ·
+    Proyecto open source en
+    <a href="https://github.com" target="_blank">GitHub</a>
+  </p>
+  <p style="margin-top:4px">⚠️ Solo para entretenimiento — no es asesoramiento de apuestas</p>
+</footer>
+
+<!-- Refresh progress bar -->
+<div class="refresh-progress">
+  <div class="refresh-fill" id="refresh-fill" style="width:0%"></div>
+</div>
+
+<script>
+/* ── Config ──────────────────────────────────────────────────── */
+// The JSON is generated by GitHub Actions and lives alongside this HTML
+const DATA_URL = './data/worldcup.json';
+
+// Refresh intervals in milliseconds
+const REFRESH_LIVE    = 60_000;   // 60 sec when there are live matches
+const REFRESH_DEFAULT = 300_000;  // 5 min otherwise
+
+/* ── State ───────────────────────────────────────────────────── */
+let state = null;
+let refreshTimer = null;
+let progressTimer = null;
+let progressStart = null;
+let progressDuration = REFRESH_DEFAULT;
+let activeTab = 'live';
+
+/* ── Tab switching ───────────────────────────────────────────── */
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    tab.classList.add('active');
+    activeTab = tab.dataset.tab;
+    document.getElementById('section-' + activeTab).classList.add('active');
+    if (state) renderAll(state);
+  });
+});
+
+/* ── Data loading ────────────────────────────────────────────── */
+async function loadData(manual = false) {
+  try {
+    // Cache-bust so GitHub Pages serves fresh data
+    const url = DATA_URL + '?t=' + Date.now();
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    state = await res.json();
+    renderAll(state);
+    scheduleNext(state.has_live);
+  } catch (err) {
+    console.error('Failed to load data:', err);
+    if (!state) showGlobalError(err.message);
+    scheduleNext(false);
+  }
+}
+
+function scheduleNext(isLive) {
+  clearTimeout(refreshTimer);
+  progressDuration = isLive ? REFRESH_LIVE : REFRESH_DEFAULT;
+  refreshTimer = setTimeout(() => loadData(), progressDuration);
+  startProgressBar(progressDuration);
+}
+
+/* ── Progress bar ────────────────────────────────────────────── */
+function startProgressBar(duration) {
+  clearInterval(progressTimer);
+  progressStart = Date.now();
+  const fill = document.getElementById('refresh-fill');
+  fill.style.transition = 'none';
+  fill.style.width = '0%';
+  void fill.offsetWidth; // force reflow
+  fill.style.transition = `width ${duration}ms linear`;
+  fill.style.width = '100%';
+}
+
+/* ── Render all ──────────────────────────────────────────────── */
+function renderAll(data) {
+  updateHeader(data);
+  renderLiveSection(data);
+  renderStandings(data.standings || []);
+  renderFixtures('results-fixtures', data.recent || []);
+  renderFixtures('upcoming-fixtures', data.upcoming || []);
+  renderScorers(data.top_scorers || []);
+  renderNextCountdown(data.upcoming || []);
+}
+
+/* ── Header ──────────────────────────────────────────────────── */
+function updateHeader(data) {
+  const d = new Date(data.updated_at);
+  document.getElementById('updated-time').textContent = d.toLocaleTimeString('es-AR', {
+    hour: '2-digit', minute: '2-digit', second: '2-digit'
+  });
+  const liveInd = document.getElementById('live-indicator');
+  liveInd.style.display = data.has_live ? 'flex' : 'none';
+}
+
+/* ── Live section ────────────────────────────────────────────── */
+function renderLiveSection(data) {
+  const liveBanner = document.getElementById('live-banner');
+  const todayEl    = document.getElementById('today-fixtures');
+
+  // Live matches banner
+  if (data.live && data.live.length > 0) {
+    liveBanner.innerHTML =
+      '<div class="section-title" style="color:var(--live)">⚡ En vivo ahora</div>' +
+      data.live.map(renderLiveCard).join('');
+  } else {
+    liveBanner.innerHTML = '';
+  }
+
+  // Today matches
+  const todayList = (data.today || []).filter(f => f.status_short !== 'FT' && f.status_short !== 'AET' && f.status_short !== 'PEN');
+  const allToday  = [...(data.live || []), ...todayList];
+
+  if (allToday.length === 0) {
+    // Show recent + upcoming blend
+    const combined = [
+      ...(data.recent  || []).slice(0,3),
+      ...(data.upcoming|| []).slice(0,4),
+    ];
+    if (combined.length === 0) {
+      todayEl.innerHTML = '<div class="empty"><div class="icon">📭</div>No hay partidos hoy. ¡Pronto!</div>';
+    } else {
+      todayEl.innerHTML = combined.map(renderFixtureCard).join('');
+    }
+  } else {
+    todayEl.innerHTML = allToday.map(renderFixtureCard).join('');
+  }
+}
+
+/* ── Live card (big) ─────────────────────────────────────────── */
+function renderLiveCard(f) {
+  const elapsed = f.elapsed ? f.elapsed + "'" : '';
+  const homeGoals = f.home.goals ?? '-';
+  const awayGoals = f.away.goals ?? '-';
+  return `
+  <div class="live-match-card" style="margin-bottom:8px">
+    <div class="match-team">
+      <img class="team-logo" src="${f.home.logo}" alt="${f.home.name}" onerror="this.style.display='none'">
+      <div class="team-name-lg">${f.home.name}</div>
+    </div>
+    <div class="score-block">
+      <div class="score-main">${homeGoals} – ${awayGoals}</div>
+      <div class="score-status">${elapsed} ${f.status_short}</div>
+      <div class="ht-score">ET: ${f.halftime.home ?? '?'} – ${f.halftime.away ?? '?'}</div>
+    </div>
+    <div class="match-team away">
+      <img class="team-logo" src="${f.away.logo}" alt="${f.away.name}" onerror="this.style.display='none'">
+      <div class="team-name-lg">${f.away.name}</div>
+    </div>
+  </div>`;
+}
+
+/* ── Fixture card (compact) ──────────────────────────────────── */
+function renderFixtureCard(f) {
+  const isLive    = ['1H','2H','HT','ET','BT','P'].includes(f.status_short);
+  const isFT      = ['FT','AET','PEN'].includes(f.status_short);
+  const isPending = f.status_short === 'NS';
+
+  const homeGoals = f.home.goals;
+  const awayGoals = f.away.goals;
+
+  let scoreHtml = '';
+  let badgeHtml = '';
+
+  if (isLive) {
+    scoreHtml = `<div class="fixture-score" style="color:var(--live)">${homeGoals ?? 0} – ${awayGoals ?? 0}</div>`;
+    badgeHtml = `<span class="badge badge-live">${f.elapsed ?? ''}' EN VIVO</span>`;
+  } else if (isFT) {
+    const homeClass = homeGoals > awayGoals ? 'winner' : homeGoals < awayGoals ? 'loser' : '';
+    const awayClass = awayGoals > homeGoals ? 'winner' : awayGoals < homeGoals ? 'loser' : '';
+    scoreHtml = `<div class="fixture-score ${homeClass || awayClass ? '' : ''}">${homeGoals} – ${awayGoals}</div>`;
+    badgeHtml = `<span class="badge badge-ft">${f.status_short}</span>`;
+  } else if (isPending) {
+    const dateStr = f.date ? new Date(f.date).toLocaleTimeString('es-AR', {hour:'2-digit', minute:'2-digit'}) : '—';
+    scoreHtml = `<div class="fixture-score pending">${dateStr}</div>`;
+    badgeHtml = `<span class="badge badge-ns">Por jugar</span>`;
+  } else {
+    scoreHtml = `<div class="fixture-score pending">—</div>`;
+    badgeHtml = `<span class="badge badge-other">${f.status_short}</span>`;
+  }
+
+  const homeWin = isFT && homeGoals > awayGoals;
+  const awayWin = isFT && awayGoals > homeGoals;
+  const dateLabel = f.date ? new Date(f.date).toLocaleDateString('es-AR', {day:'2-digit', month:'short'}) : '';
+
+  return `
+  <div class="fixture-card">
+    <div class="fixture-meta">
+      <span>${f.round || ''}</span>
+      <span>${dateLabel} · ${f.city || ''}</span>
+      ${badgeHtml}
+    </div>
+    <div class="fixture-teams">
+      <div class="fixture-team" style="${homeWin ? 'opacity:1' : isFT ? 'opacity:.55' : ''}">
+        <img src="${f.home.logo}" alt="${f.home.name}" onerror="this.style.display='none'">
+        <span class="name ${homeWin ? 'winner' : ''}">${f.home.name}</span>
+      </div>
+      ${scoreHtml}
+      <div class="fixture-team away" style="${awayWin ? 'opacity:1' : isFT ? 'opacity:.55' : ''}">
+        <img src="${f.away.logo}" alt="${f.away.name}" onerror="this.style.display='none'">
+        <span class="name ${awayWin ? 'winner' : ''}">${f.away.name}</span>
+      </div>
+    </div>
+    ${f.halftime.home !== null && isFT ? `<div style="text-align:center;font-size:11px;color:var(--muted);margin-top:6px">Primer tiempo: ${f.halftime.home} – ${f.halftime.away}</div>` : ''}
+  </div>`;
+}
+
+/* ── Standings ───────────────────────────────────────────────── */
+function renderStandings(groups) {
+  const el = document.getElementById('standings-grid');
+  if (!groups.length) {
+    el.innerHTML = '<div class="empty"><div class="icon">📊</div>Los datos de posiciones se cargarán cuando comiencen los partidos</div>';
+    return;
+  }
+
+  el.innerHTML = groups.map(g => `
+  <div class="group-card">
+    <div class="group-header">${g.group}</div>
+    <table class="standings-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Equipo</th>
+          <th>PJ</th>
+          <th>G</th>
+          <th>E</th>
+          <th>P</th>
+          <th>GD</th>
+          <th>Pts</th>
+          <th>Forma</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${g.teams.map((t, i) => `
+        <tr class="${i < 2 ? 'qualified' : i === 2 ? 'qualified-3rd' : ''}">
+          <td><span class="rank-num rank-${t.rank}">${t.rank}</span></td>
+          <td>
+            <div class="team-cell">
+              <img src="${t.logo}" alt="${t.team}" onerror="this.style.display='none'">
+              <span>${t.team}</span>
+            </div>
+          </td>
+          <td>${t.played}</td>
+          <td>${t.win}</td>
+          <td>${t.draw}</td>
+          <td>${t.lose}</td>
+          <td style="color:${t.gd > 0 ? 'var(--green)' : t.gd < 0 ? 'var(--red)' : 'var(--muted)'}">${t.gd > 0 ? '+' : ''}${t.gd}</td>
+          <td class="pts">${t.points}</td>
+          <td>
+            <div class="form-pills">
+              ${(t.form || '').split('').slice(-5).map(c =>
+                `<span class="fp fp-${c}">${c}</span>`
+              ).join('')}
+            </div>
+          </td>
+        </tr>`).join('')}
+      </tbody>
+    </table>
+  </div>`).join('');
+}
+
+/* ── Generic fixture list ────────────────────────────────────── */
+function renderFixtures(containerId, fixtures) {
+  const el = document.getElementById(containerId);
+  if (!fixtures.length) {
+    el.innerHTML = '<div class="empty"><div class="icon">📭</div>Sin datos por el momento</div>';
+    return;
+  }
+  el.innerHTML = fixtures.map(renderFixtureCard).join('');
+}
+
+/* ── Scorers ─────────────────────────────────────────────────── */
+function renderScorers(scorers) {
+  const el = document.getElementById('scorers-list');
+  if (!scorers.length) {
+    el.innerHTML = '<div class="empty"><div class="icon">⚽</div>Los goleadores aparecerán cuando comiencen los partidos</div>';
+    return;
+  }
+  const rankClass = i => i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
+  el.innerHTML = scorers.map((s, i) => `
+  <div class="scorer-card">
+    <div class="scorer-rank ${rankClass(i)}">${i + 1}</div>
+    <img class="scorer-photo" src="${s.photo || ''}" alt="${s.name}" onerror="this.src='https://media.api-sports.io/football/players/0.png'">
+    <div class="scorer-info">
+      <div class="scorer-name">${s.name}</div>
+      <div class="scorer-team">
+        <img src="${s.team_logo || ''}" alt="${s.team}" onerror="this.style.display='none'">
+        ${s.team}
+      </div>
+    </div>
+    <div>
+      <div class="scorer-goals">${s.goals || 0} <span>goles</span></div>
+      <div style="font-size:11px; color:var(--muted); text-align:right">${s.assists || 0} asist.</div>
+    </div>
+  </div>`).join('');
+}
+
+/* ── Next match countdown ────────────────────────────────────── */
+function renderNextCountdown(upcoming) {
+  const bar = document.getElementById('countdown-bar');
+  if (!upcoming.length) { bar.style.display = 'none'; return; }
+  const next = upcoming.find(f => f.status_short === 'NS');
+  if (!next) { bar.style.display = 'none'; return; }
+
+  const target = new Date(next.date);
+  const now = new Date();
+  const diff = target - now;
+  if (diff <= 0 || diff > 48 * 3600 * 1000) { bar.style.display = 'none'; return; }
+
+  bar.style.display = 'block';
+  const h = Math.floor(diff / 3600000);
+  const m = Math.floor((diff % 3600000) / 60000);
+  document.getElementById('countdown-text').textContent =
+    `${next.home.name} vs ${next.away.name} · en ${h}h ${m}m`;
+}
+
+/* ── Error state ─────────────────────────────────────────────── */
+function showGlobalError(msg) {
+  ['today-fixtures', 'standings-grid', 'results-fixtures', 'upcoming-fixtures', 'scorers-list'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = `<div class="empty"><div class="icon">⚠️</div>Error cargando datos<br><small style="color:var(--muted)">${msg}</small><br><br><button class="refresh-btn" onclick="loadData(true)">Reintentar</button></div>`;
+  });
+}
+
+/* ── Init ────────────────────────────────────────────────────── */
+loadData();
+</script>
+</body>
+</html>
